@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Subway Path Visualization</title>
+    <script src='https://d3js.org/d3.v5.min.js'></script>
+    <script src='https://unpkg.com/topojson@3.0.2/dist/topojson.js'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.4.1/underscore-min.js'></script>
+    <script src='https://unpkg.com/react@16.7.0/umd/react.development.js'></script>
+    <script src='https://unpkg.com/react-dom@16.7.0/umd/react-dom.development.js'></script>
+    <script src='https://unpkg.com/@babel/standalone/babel.min.js'></script>
+    <link rel='stylesheet' type='text/css' href='stylesheets/style.css'>
+</head>
+<body>
+<div id='root'></div>
+<script type='text/babel' src='src/components/chart/elements/G.js'></script>
+<script type='text/babel' src='src/components/chart/elements/Svg.js'></script>
+<script type='text/babel' src='src/components/chart/elements/AxisX.js'></script>
+<script type='text/babel' src='src/components/chart/elements/AxisY.js'></script>
+<script type='text/babel' src='src/components/chart/elements/Button.js'></script>
+<script type='text/babel' src='src/components/chart/graph/BoroughMap.js'></script>
+<script type='text/babel' src='src/components/chart/graph/SubwayPaths.js'></script>
+<script type='text/babel' src='src/components/chart/graph/SubwayStations.js'></script>
+<script type='text/babel' src='src/components/chart/graph/Circle.js'></script>
+<script type='text/babel' src='src/components/chart/graph/IncomeGraph.js'></script>
+<script type='text/babel' src='src/components/chart/graph/Subway.js' defer></script>
+<script type='text/babel'>
+    const margin = {top: 35, left: 35, bottom: 0, right: 0};
+    const dimensions = { height: 400 - margin.top - margin.bottom, width: 1000 - margin.left - margin.right };
+    class App extends React.Component {
+        constructor(props){
+            super(props);
+            this.stationsRef = React.createRef();
+            this.state = {
+                trail:[]
+            }
+        }
+        ;
+        tick (point) {
+            this.setState({ trail: this.state.trail.concat(point)});
+        }
+        ;
+        translateAlong (routePath, filter, projection, tick) {
+            const
+                round = (x, n) => n == null ? Math.round(x) : Math.round(x * (n = Math.pow(10, n))) / n,
+                station = (x, y) => _.filter(filter, e => {
+                    let coord = projection(e.geometry.coordinates);
+                    return round(coord[1], 0) === round(y, 0) && round(coord[0],0) === round(x,0);
+                })
+                ;
+            if(!routePath) return;
+            let
+                node = routePath.node(),
+                l = node.getTotalLength()
+            ;
+            return function(d, i, a) {
+                return function(t) {
+                    var p = node.getPointAtLength(t * l);
+                    var addy = (p.y) -852.8658360008121;
+                    var addx = (p.x) -616.9774511869764;
+                    var stat = station(p.x, p.y);
+                    if (stat[0]){
+                        stat[0].properties['ts'] = Date.now();
+                        tick(stat[0]);
+                    }
+                    return 'translate(' + addx + ',' + addy + ')' ;
+                };
+            };
+        }
+        ;
+        transition = d => {
+            const
+                ref = this.stationsRef.current,
+                stations = ref.state.stations,
+                duration = ref.state.duration,
+                track = d,
+                routePath = d3.selectAll(`.phantom-${track}`),
+                translateAlong = this.translateAlong,
+                projection = this.stationsRef.current.projection(),
+                tick = d => this.tick(d),
+                filter = _.filter( stations, o => o.properties.line.includes(track) )
+            ;
+            d3.selectAll('.point')
+                .transition()
+                .delay(500)
+                .ease(d3.easeLinear)
+                .duration(duration)
+                .attrTween('transform', translateAlong(routePath, filter, projection, tick ) )
+            ;
+        }
+        ;
+        render () {
+            const
+                margin = {top: 90, right: 50, bottom: 20, left: 90},
+                transform = `translate(${ margin.left },${ margin.top })`,
+                style = {width: 1400, height: 1500 },
+                height = style.height / 2.20,
+                width = style.width / 3.25,
+                dimensions = { width: width, height: height, transform: transform },
+                positionX = `translate(0,${height})`,
+                transformLabel = 'rotate(-90)'
+            ;
+            return (
+                    <Subway
+                        className='subway'
+                    >
+                        <BoroughMap/>
+                        <SubwayPaths
+                            className='feature-group'
+                            path='subway-lines.geojson'
+                            identifier='features'
+                            pathsColor= { d => `route line-${ d.properties.rt_symbol }` }
+                        />
+                        <Circle
+                            className='train'
+                        />
+                        <SubwayPaths
+                            className='phantom-group'
+                            path='phantom-lines.json'
+                            identifier='routes'
+                            pathsColor={ d => `route phantom-${ d.name }` }
+                        />
+                        <SubwayStations
+                            ref={ this.stationsRef }
+                        >
+                            <Button
+                                className='subway-name'
+                                onClick={ this.transition }
+                                circleClass={ d => `tag-${d}`}
+                                data={ ['1','6','L'] }
+                                cx={ 150 }
+                                cy={ 50 }
+                                radius={ 20 }
+                            />
+                        </SubwayStations>
+                        <IncomeGraph
+                            className='income-graph'
+                            { ...dimensions }
+                            dataset={ this.state.trail }
+                        >
+                            <AxisX
+                                x={ width }
+                                y={ -6 }
+                                text='Median Household Income By Subway Station Neighborhood'
+                                fontSize={ 2 }
+                                position={ positionX }
+                            />
+                            <AxisY
+                                x={ width }
+                                y= { 6 }
+                                dy='.71em'
+                                text='test me'
+                                transformText={ transformLabel }
+                            />
+                        </IncomeGraph>
+                    </Subway>
+            )
+        }
+    }
+    ReactDOM.render(<App/>, document.getElementById('root'))
+    ;
+</script>
+</body>
+</html>
