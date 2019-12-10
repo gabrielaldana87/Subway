@@ -1,6 +1,6 @@
 # A Journey Visualizing Income on the New York City Subway
 
-<img src="https://github.com/gabrielaldana87/Subway/blob/master/subway.gif" width="600" />
+<img src="https://github.com/gabrielaldana87/Subway/blob/master/public/subway.gif" width="600" />
 
 ## Development Environment
 
