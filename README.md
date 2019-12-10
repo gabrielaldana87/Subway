@@ -1,5 +1,7 @@
 # A Journey Visualizing Income on the New York City Subway
 
+<img src="https://github.com/gabrielaldana87/Subway/blob/master/subway.gif" width="600" />
+
 ## Development Environment
 
 Run a server. I have run http-server from a Terminal window to serve up my client-side files. I've included CDN scripts
